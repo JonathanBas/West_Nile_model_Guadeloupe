@@ -1,0 +1,29 @@
+model {
+
+	for(site_i in 1:4){
+		for (week_i in 1:last_week){
+			foi_week_esp[week_i, site_i] <- site_eff[site_i] * ((foi_max/2) * (1-min_prop) * (cos((week_i - week_peak)*3.142/26) + 1) + min_prop*foi_max)
+			foi_week[week_i, site_i] ~ dnorm(foi_week_esp[week_i, site_i], 1/(stand_dev^2))
+		}
+	}
+
+	# PRIORS
+
+	#for(year_i in 1:year_max){
+	#	log_foi_max[year_i] ~ dunif(-5,10)
+	#	foi_max[year_i] <- exp(log_foi_max[year_i])
+	#}
+	log_foi_max ~ dunif(-5,10)
+	foi_max <- exp(log_foi_max)
+	
+	week_peak ~ dunif(1,53)
+	
+	min_prop ~ dunif(0,1)
+	
+	stand_dev ~ dunif(0, 100)
+	
+	site_eff[1] <- 1
+	site_eff[2] ~ dunif(0, 100)
+	site_eff[3] ~ dunif(0, 100)
+	site_eff[4] ~ dunif(0, 100)
+}
