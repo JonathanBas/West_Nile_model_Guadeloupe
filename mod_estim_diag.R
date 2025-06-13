@@ -11,6 +11,7 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(ggpubr)
+library(pracma)
 
 ###définir nb_sem_tab pour le modèle JAGS 
 nb_sem_tab_chev <- ncol(paires_chv_df1)
@@ -40,8 +41,7 @@ jags1 <- jags.model("./FlatStable.BUGS",
                     n.adapt = 0)
 
 samples1 <- jags.samples(jags1,
-                         c("foi","nu","deviance","fact_pl","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","pD"),
-                         # c("foi","nu","deviance","fact_pl","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"),
+                         c("foi","nu","deviance","fact_pl","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"),
                          40000,
                          thin = 200)
 save(samples1, file="./sample_model_FlatStable.RDATA")
@@ -66,7 +66,7 @@ jags1 <- jags.model("./FlatVary.BUGS",
                     n.adapt = 0)
 
 samples1 <- jags.samples(jags1,
-                         c("foi","nu","deviance","fact_pl","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","pD"),
+                         c("foi","nu","deviance","fact_pl","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"),
                          40000,
                          thin = 200)
 save(samples1, file="./sample_model_FlatVary.RDATA")
@@ -88,7 +88,7 @@ jags1 <- jags.model("./SeasoStable.BUGS",
                     n.adapt = 0)
 
 samples1 <- jags.samples(jags1,
-                         c("foi_max","nu","deviance","fact_pl","week_peak","min_prop","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","pD"),
+                         c("foi_max","nu","deviance","fact_pl","week_peak","min_prop","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"),
                          40000,
                          thin = 200)
 save(samples1, file="./sample_model_SeasoStable.RDATA")
@@ -113,8 +113,7 @@ jags1 <- jags.model("./SeasoVary.BUGS",
                     n.adapt = 0)
 
 samples1 <- jags.samples(jags1,
-                         c("foi_max","nu","deviance","fact_pl","week_peak","min_prop","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","pD"), #,"prob_sample2_chev_egal_1","prob_sample2_poul_egal_1"),
-                         # c("foi_max","nu","deviance","fact_pl","week_peak","min_prop","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"),
+                         c("foi_max","nu","deviance","fact_pl","week_peak","min_prop","eta","param_alpha_1","param_alpha_2","param_P","NPV_1st_samp","spec","PPV_1st_samp","pD"), #,"serop_true_sample1_chev","prob_sample2_chev_egal_1","serop_true_sample1_poul","prob_sample2_poul_egal_1"),
                           40000,
                          thin = 200)
 save(samples1, file="./sample_model_SeasoVary.RDATA")
@@ -191,11 +190,19 @@ print(effectiveSize(Mch))
 print(gelman.diag(Mch))
 gelman.plot(Mch) # should be < 1.05 (or 1.1 in other sources)
 
-fit_poster_prior <- function(param, name_param, prior_dis, plot_leg=F, fit_prior=T){
+fit_poster_prior <- function(param, name_param, prior_dis, plot_leg=F, fit_prior=T, scale="linear"){
   poster_dis <- combined_Mch[,param]
   
+  if(scale == "linear"){
+    val_plot <- c(prior_dis, poster_dis)
+  }else if(scale == "log"){
+    val_plot <- log(c(prior_dis, poster_dis))
+  }else if(scale == "logit"){
+    val_plot <- logit(c(prior_dis, poster_dis))
+  }
+  
   distr = data.frame(Distribution = c(rep("Prior",length(prior_dis)), rep("Posterior",length(poster_dis))),
-                     val = c(prior_dis, poster_dis))
+                     val = val_plot)
   distr$Distribution = factor(distr$Distribution, levels=c("Prior", "Posterior"))
   
   if(! fit_prior){distr <- filter(distr, Distribution=="Posterior")}
@@ -203,37 +210,40 @@ fit_poster_prior <- function(param, name_param, prior_dis, plot_leg=F, fit_prior
   distrib_plot <- ggplot(data = distr, aes(x=val, fill=Distribution, alpha=Distribution)) +
     geom_density(color="black") +
     xlab(name_param) + ylab(NULL) +
-    scale_fill_manual(name="Distribution:", values=c("Prior"="#d95f02", "Posterior"="#1b9e77")) +
-    scale_alpha_manual(name="Distribution:", values=c("Prior"=0.3, "Posterior"=0.8)) +
+    scale_fill_manual(name=NULL, values=c("Prior"="#d95f02", "Posterior"="#1b9e77")) +
+    scale_alpha_manual(name=NULL, values=c("Prior"=0.3, "Posterior"=0.8)) +
     theme_bw() +
     theme(legend.position="none", axis.text.x=element_text(angle=90, vjust=0.4))
-  if(plot_leg){distrib_plot = distrib_plot + theme(legend.position = c(0.35, 0.65))}
+  if(plot_leg){distrib_plot = distrib_plot + theme(legend.position = c(0.35, 0.65),
+                                                   legend.background = element_rect(fill="transparent", colour ="transparent"))}
   
   return(distrib_plot)
 }
 
-p_param_fit <- ggarrange(fit_poster_prior("eta", expression(eta), runif(100000, 0, 1), plot_leg=T, fit_prior = T),
-                         fit_poster_prior("min_prop", expression(epsilon), rbeta(100000, 3.80, 22.43), fit_prior = T),
-                         fit_poster_prior("week_peak", expression(delta), rnorm(100000, 45.26, 0.988), fit_prior = T),
-                         fit_poster_prior("nu", expression(mu), runif(100000, 0, 0.5), fit_prior = F),
-                         fit_poster_prior("fact_pl", expression(beta), runif(100000, 0, 10), fit_prior = T),
-                         fit_poster_prior("NPV_1st_samp", bquote(NPV[1]), runif(100000, 0, 1), fit_prior = F),
-                         fit_poster_prior("foi_max[1]", expression(Lambda["2002"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[2]", expression(Lambda["2003"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[3]", expression(Lambda["2004"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[4]", expression(Lambda["2005"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[5]", expression(Lambda["2006"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[6]", expression(Lambda["2007"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[7]", expression(Lambda["2008"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[8]", expression(Lambda["2009"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[9]", expression(Lambda["2010"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[10]", expression(Lambda["2011"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[11]", expression(Lambda["2012"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[12]", expression(Lambda["2013"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[13]", expression(Lambda["2014"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[14]", expression(Lambda["2015"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[15]", expression(Lambda["2016"]), exp(runif(100000, -20, 3)), fit_prior = F),
-                         fit_poster_prior("foi_max[16]", expression(Lambda["2017"]), exp(runif(100000, -20, 3)), fit_prior = F),
+p_param_fit <- ggarrange(fit_poster_prior("eta", expression(eta), rbeta(100000, 3, 1), plot_leg=T, scale="linear"),
+                         fit_poster_prior("spec", expression(logit(psi)), rbeta(100000, 3, 1), scale="logit"),
+                         fit_poster_prior("min_prop", expression(epsilon), rbeta(100000, 3.80, 22.43), scale="linear"),
+                         fit_poster_prior("week_peak", expression(delta), rnorm(100000, 45.26, 0.988), scale="linear"),
+                         fit_poster_prior("nu", expression(logit(mu)), runif(100000, 0, 0.5), scale="logit"),
+                         fit_poster_prior("fact_pl", expression(beta), runif(100000, 0, 10), scale="linear"),
+                         fit_poster_prior("param_alpha_1", expression(alpha["1"]), runif(100000, 0, 100), scale="linear"),
+                         fit_poster_prior("param_alpha_2", expression(alpha["2"]), runif(100000, 0, 100), scale="linear"),
+                         fit_poster_prior("foi_max[1]", expression(log(Lambda["2002"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[2]", expression(log(Lambda["2003"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[3]", expression(log(Lambda["2004"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[4]", expression(log(Lambda["2005"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[5]", expression(log(Lambda["2006"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[6]", expression(log(Lambda["2007"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[7]", expression(log(Lambda["2008"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[8]", expression(log(Lambda["2009"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[9]", expression(log(Lambda["2010"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[10]", expression(log(Lambda["2011"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[11]", expression(log(Lambda["2012"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[12]", expression(log(Lambda["2013"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[13]", expression(log(Lambda["2014"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[14]", expression(log(Lambda["2015"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[15]", expression(log(Lambda["2016"])), exp(runif(100000, -20, 3)), scale="log"),
+                         fit_poster_prior("foi_max[16]", expression(log(Lambda["2017"])), exp(runif(100000, -20, 3)), scale="log"),
                          align="hv", ncol=4, nrow=6)
 p_param_fit = annotate_figure(p_param_fit, left = text_grob("Density", size=11, rot=90))
 

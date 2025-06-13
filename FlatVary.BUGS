@@ -8,13 +8,13 @@ model {
     sum_foi_cum_chev[pair_chev_i] <- sum(foi_cum_chev[pair_chev_i, ])
 
 	serop_true_sample1_chev[pair_chev_i] <- ifelse(tab_indiv_pair_chev[pair_chev_i, 2] == 1,
-													serop_pair_chev[pair_chev_i, 3] + (1 - NPV_1st_samp) * (1 - serop_pair_chev[pair_chev_i, 3]), #proba_init_chev,
+													PPV_1st_samp * serop_pair_chev[pair_chev_i, 3] + (1 - NPV_1st_samp) * (1 - serop_pair_chev[pair_chev_i, 3]), #proba_init_chev,
 													serop_true_sample2_chev[1000 + pair_chev_i - 1])
 	
     prob_sample2_chev_egal_1[pair_chev_i] <- (1 - serop_true_sample1_chev[pair_chev_i]) * (1 - exp(-sum_foi_cum_chev[pair_chev_i])) + serop_true_sample1_chev[pair_chev_i] * exp(-(list_sem_chev[pair_chev_i, nb_sem_tab_chev] - list_sem_chev[pair_chev_i, 1]) * nu)
 
 	serop_true_sample2_chev[1000 + pair_chev_i] <- prob_sample2_chev_egal_1[pair_chev_i] #~ dbern(prob_sample2_chev_egal_1[pair_chev_i])
-	serop_pair_chev[pair_chev_i, 4] ~ dbern(max(0.0001, eta * serop_true_sample2_chev[1000 + pair_chev_i]))
+	serop_pair_chev[pair_chev_i, 4] ~ dbern(eta * serop_true_sample2_chev[1000 + pair_chev_i] + (1-spec) * (1-serop_true_sample2_chev[1000 + pair_chev_i]))
   }
 
 	# Careful: "serop_true_sample2_poul" indices are shifted by +3000
@@ -26,13 +26,13 @@ model {
     sum_foi_cum_poul[pair_poul_i] <- sum(foi_cum_poul[pair_poul_i, ])
 
 	serop_true_sample1_poul[pair_poul_i] <- ifelse(tab_indiv_pair_poul[pair_poul_i, 2] == 1,
-													serop_pair_poul[pair_poul_i, 3] + (1 - NPV_1st_samp) * (1 - serop_pair_poul[pair_poul_i, 3]), #proba_init_poul,
+													PPV_1st_samp * serop_pair_poul[pair_poul_i, 3] + (1 - NPV_1st_samp) * (1 - serop_pair_poul[pair_poul_i, 3]), #proba_init_poul,
 													serop_true_sample2_poul[3000 + pair_poul_i - 1])
 
     prob_sample2_poul_egal_1[pair_poul_i] <- (1 - serop_true_sample1_poul[pair_poul_i]) * (1 - exp(-sum_foi_cum_poul[pair_poul_i])) + serop_true_sample1_poul[pair_poul_i] * exp(-(list_sem_poul[pair_poul_i, nb_sem_tab_poul] - list_sem_poul[pair_poul_i, 1]) * nu)
 
 	serop_true_sample2_poul[3000 + pair_poul_i] <- prob_sample2_poul_egal_1[pair_poul_i] #~ dbern(prob_sample2_poul_egal_1[pair_poul_i])
-	serop_pair_poul[pair_poul_i, 4] ~ dbern(max(0.0001, eta * serop_true_sample2_poul[3000 + pair_poul_i]))
+	serop_pair_poul[pair_poul_i, 4] ~ dbern(eta * serop_true_sample2_poul[3000 + pair_poul_i] + (1-spec) * (1-serop_true_sample2_poul[3000 + pair_poul_i]))
   }
 
   # PRIORS
@@ -42,10 +42,12 @@ model {
 	}
   nu ~ dunif(0, 0.5)
   fact_pl ~ dunif(0, 10)
-  eta ~ dunif(0, 1) #dbeta(9, 1)
+  eta ~ dbeta(3, 1) #dunif(0, 1)
+  spec ~ dbeta(3, 1) #dunif(0, 1)
   
   param_alpha_1 ~ dunif(0, 100)
   param_alpha_2 ~ dunif(0, 100)
   param_P ~ dbeta(param_alpha_1, param_alpha_2)
-  NPV_1st_samp <- (1 - param_P) / (1 - param_P + (1 - eta) * param_P)
+  PPV_1st_samp <- (eta * param_P) / (eta * param_P + (1 - spec) * (1 - param_P))
+  NPV_1st_samp <- (spec * (1 - param_P)) / (spec * (1 - param_P) + (1 - eta) * param_P)
 }

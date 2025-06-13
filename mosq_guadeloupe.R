@@ -121,20 +121,26 @@ foi_wk_aggr <- as.data.frame(foi_wk %>%
                                          val = median(foi),
                                          sup = quantile(foi, 0.975)) %>%
                                mutate(week = as.numeric(week)) %>%
-                               merge(y=bdd_mous_aggr, by.x=c("Site","week_name"), by.y=c("Site","sem_pvmt")))
+                               merge(y=bdd_mous_aggr, by.x=c("Site","week_name"), by.y=c("Site","sem_pvmt")) %>%
+                               mutate(pseudo_Date = as.Date(paste0(week_name,"-0"), format="%Y-%U-%w")))
+
+year_start_samp <- format(format="%Y", min(c(filtered_data_chev$`DATE PRELEVEMENT`,filtered_data_poul$`DATE PRELEVEMENT`,foi_wk_aggr$pseudo_Date)))
+year_end_samp <- format(format="%Y", max(c(filtered_data_chev$`DATE PRELEVEMENT`,filtered_data_poul$`DATE PRELEVEMENT`,foi_wk_aggr$pseudo_Date)))
+lim_x <- c(as.Date(paste0(year_start_samp,"-01-01")), as.Date(paste0(year_end_samp,"-12-31")))
+seq_wk <- as.Date(paste0(year_start_samp:year_end_samp, "-01-07"))
+seq_wk_name <- format(seq_wk, format="%Y-%U")
 
 p_fit_abun = ggplot() +
-  geom_bar(data=foi_wk_aggr, aes(x=week_name, y=abun_mosq), stat="identity", width=1) +
-  geom_ribbon(data=foi_wk_aggr, aes(x=week_name, ymin=inf, ymax=sup, group=1), linetype="dashed", alpha=0, col=1) +
-  geom_line(data=foi_wk_aggr, aes(x=week_name, y=val, group=1)) +
-  xlab("Weeks") + ylab("Mosquito abundance") +
-  facet_wrap(~Site, ncol=2, labeller = as_labeller(c("GP001"="Site 1", "GP002"="Site 2", "GP009"="Site 3", "GP010"="Site 4"))) +
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 90, size=c(8,rep(0, 20)), colour=c("black",rep("white", 20))),
-        axis.ticks.x = element_blank())
-p_fit_abun
+  geom_ribbon(data=foi_wk_aggr, aes(x=pseudo_Date, ymin=inf, ymax=sup, group=1), alpha=0.4, fill="#d95f02") +
+  geom_line(data=foi_wk_aggr, aes(x=pseudo_Date, y=val, group=1), col="#d95f02") +
+  geom_bar(data=foi_wk_aggr, aes(x=pseudo_Date, y=abun_mosq), stat="identity", fill="black", width=7) +
+  ylab("Mosquito abundance") +
+  scale_x_date(name="Weeks", breaks=seq_wk, labels=seq_wk_name, limits=lim_x) +
+  facet_wrap(~Site, ncol=1, labeller = as_labeller(c("GP001"="Site 1", "GP002"="Site 2", "GP009"="Site 3", "GP010"="Site 4"))) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90, vjust=0.5))
 
-pdf(file="./fig_fit_abun_mosqui.pdf", width=6, height=4.5)
+png(file="./fig_fit_abun_mosqui.png", width=18, height=21, units="cm", res=300)
 p_fit_abun
 dev.off()
 

@@ -223,8 +223,10 @@ modplot <- function(mod, n_simu=1000){
     scale_x_continuous(limits = c(min(simu_foi_aggr$sem), max(simu_foi_aggr$sem)),
                        breaks = seq(min(simu_foi_aggr$sem)+1, max(simu_foi_aggr$sem), 52),
                        labels = format(vec_weeks[seq(min(simu_foi_aggr$sem)+1, max(simu_foi_aggr$sem), 52)], "%Y-%m")) +
+    scale_y_continuous(breaks = -0.0001 * max(filter(tab_chev, res_ech_1==0)$order) /2,
+                       labels = "Pairs of samples") +
     theme_bw() +
-    theme(axis.text.y = element_blank(),
+    theme(axis.text.y = element_text(angle=90, hjust=0.5),
           axis.ticks.y = element_blank(),
           legend.position = c(0.85, 0.7),
           # axis.text.x = element_text(angle=90, vjust=0.4))
@@ -239,13 +241,15 @@ modplot <- function(mod, n_simu=1000){
     scale_x_continuous(limits = c(min(simu_foi_aggr$sem), max(simu_foi_aggr$sem)),
                        breaks = seq(min(simu_foi_aggr$sem)+1, max(simu_foi_aggr$sem), 52),
                        labels = format(vec_weeks[seq(min(simu_foi_aggr$sem)+1, max(simu_foi_aggr$sem), 52)], "%Y-%m")) +
+    scale_y_continuous(breaks = -0.0001 * max(filter(tab_pl, res_ech_1==0)$order) /2,
+                       labels = "Pairs of samples") +
     
     geom_rect(aes(xmin=600, xmax=670, ymin=-0.0001*3200, ymax=-0.0001*3415), col="black", alpha=0, linewidth=0.5) +
     geom_segment(aes(x=600, y=-0.0001*3415, xend=398, yend=-0.0001*2050), col="black", linewidth=0.5, linetype="dashed") +
     geom_segment(aes(x=670, y=-0.0001*3200, xend=527, yend=-0.0001*240), col="black", linewidth=0.5, linetype="dashed") +
   
     theme_bw() +
-    theme(axis.text.y = element_blank(),
+    theme(axis.text.y = element_text(angle=90, hjust=0.5),
           axis.ticks.y = element_blank(),
           legend.position = c(0.85, 0.8),
           axis.text.x = element_text(angle=90, vjust=0.4))
